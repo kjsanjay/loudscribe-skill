@@ -1,0 +1,79 @@
+name: Test feedback
+description: Tell us how loudscribe worked on your computer, or what went wrong.
+title: "[feedback] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing. **Issues are public.** Never post recordings, transcripts, summaries,
+        names, or anything anyone said. Don't paste whole logs or the "where everything is" list:
+        they contain folder names, recording dates and times. Remove your username from any path.
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options: [Claude Code, Codex, Other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: loudscribe and Python version
+      description: The first line `loudscribe doctor` prints (ask your agent to run it).
+      placeholder: "loudscribe 0.1.1, Python 3.11.9"
+    validations:
+      required: true
+  - type: input
+    id: computer
+    attributes:
+      label: Computer
+      description: Operating system, chip or CPU, memory. `loudscribe doctor` prints the engine it uses.
+      placeholder: "Windows 11, Intel i7-1360P, 16 GB, CPU engine"
+    validations:
+      required: true
+  - type: dropdown
+    id: step
+    attributes:
+      label: Where did it go wrong (or did it all work)?
+      options:
+        - It all worked
+        - Installing the skill
+        - Installing the tools or models
+        - Checking the recordings
+        - The sample
+        - Processing (music removal, transcription, finding conversations)
+        - The results (viewer, transcript, audio files)
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected and what happened instead. Describe it in your own words; don't paste the agent's summaries of your recordings.
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Recordings and options
+      description: Recorder or phone, audio format, and any options used (quiet place / no music removal, another language).
+      placeholder: "Tonfarb A20, WAV, music removal on, English"
+  - type: textarea
+    id: timings
+    attributes:
+      label: Hours of audio and how long it took
+      description: For example "2 recordings, 1.5 h of audio, took 4 h". The step times at the end of progress.log help.
+  - type: textarea
+    id: errors
+    attributes:
+      label: Error messages
+      description: The technical error text only (for example a Python traceback). Leave out transcript lines, recording file names, dates and folder names.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I haven't included recordings, transcripts, names, or anything anyone said.
+          required: true

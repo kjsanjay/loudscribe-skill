@@ -1,0 +1,11 @@
+# Tested versions. Install into a Python 3.11 (or 3.12) virtual environment:
+#   python -m pip install -r requirements.txt
+# Apple Silicon Macs get mlx-whisper; everything else gets faster-whisper (same Whisper model).
+torch==2.14.1
+audio-separator[cpu]==0.47.0
+transformers==5.18.0
+huggingface_hub==1.33.0
+soundfile==0.14.0
+numpy==2.4.6
+mlx-whisper==0.4.3; sys_platform == "darwin" and platform_machine == "arm64"
+faster-whisper==1.2.1; sys_platform != "darwin" or platform_machine != "arm64"

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root { --bg:#fff; --fg:#1d1d1f; --muted:#6e6e73; --line:#e5e5ea; --hover:#f2f2f5; --hl:#ffe98a; --cur:#dcebfb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#141414; --fg:#ececec; --muted:#9a9a9f; --line:#2c2c2e; --hover:#202022; --hl:#6b5900; --cur:#1d3047; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { position: sticky; top: 0; z-index: 1; background: var(--bg);
+           border-bottom: 1px solid var(--line); padding: 12px 16px 10px; }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 8px; }
+  input[type=search] { flex: 1 1 260px; font: inherit; padding: 7px 10px; border-radius: 8px;
+                       border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  select { font: inherit; font-size: 13px; background: var(--bg); color: var(--fg);
+           border: 1px solid var(--line); border-radius: 6px; padding: 3px 4px; }
+  audio { width: 100%; margin-top: 8px; height: 36px; }
+  main { padding: 4px 16px 96px; }
+  .rec { margin: 22px 0 2px; font-weight: 600; }
+  .sec { margin: 14px 0 2px; color: var(--muted); font-size: 13px; }
+  .ln { display: flex; gap: 12px; padding: 3px 8px; margin: 0 -8px; border-radius: 6px; cursor: pointer; }
+  .ln:hover { background: var(--hover); }
+  .ln.cur { background: var(--cur); }
+  .t { color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  mark { background: var(--hl); color: inherit; border-radius: 3px; padding: 0 1px; }
+  .hidden { display: none; }
+  .empty { color: var(--muted); padding: 24px 0; }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1 id="title"></h1>
+  <div class="meta" id="meta"></div>
+  <div class="controls">
+    <input type="search" id="q" placeholder="Search what was said…" autocomplete="off">
+    <label class="meta">Play from
+      <select id="mode">
+        <option value="conv">conversation-only audio</option>
+        <option value="full">full recording (music removed)</option>
+      </select></label>
+    <span class="meta" id="count"></span>
+  </div>
+  <audio id="player" controls preload="none"></audio>
+</div></header>
+<main><div class="wrap" id="list"></div></main>
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById("data").textContent);
+const $ = id => document.getElementById(id);
+const player = $("player"), list = $("list"), q = $("q"), mode = $("mode"), count = $("count");
+const recs = Object.fromEntries(D.recordings.map(r => [r.id, r]));
+const norm = s => s.toLowerCase().replace(/[^\p{L}\p{N}']+/gu, " ").replace(/\s+/g, " ").trim();
+const clock = s => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+$("title").textContent = D.session;
+$("meta").textContent = `${D.recordings.length} recording${D.recordings.length === 1 ? "" : "s"} · ` +
+  `${clock(D.speech_seconds)} of conversation · click a line to hear it`;
+
+// Build the list: recording header > section header > lines. Each header knows its lines,
+// so a search can hide headers whose lines are all hidden.
+const rows = [];  // {line, el, text, key}
+const groups = [];  // {el, rows: []}
+let recGroup = null, secGroup = null;
+for (const l of D.lines) {
+  if (!recGroup || recGroup.rec !== l.rec) {
+    const r = recs[l.rec];
+    const h = el("div", "rec", `${r.id} · started ${r.start.replace("T", " ")}`);
+    list.append(h); recGroup = { el: h, rec: l.rec, rows: [] }; groups.push(recGroup); secGroup = null;
+  }
+  if (!secGroup || secGroup.n !== l.section) {
+    const s = D.sections.find(s => s.rec === l.rec && s.n === l.section);
+    const h = el("div", "sec", `${s.wall_start}–${s.wall_end}`);
+    list.append(h); secGroup = { el: h, n: l.section, rows: [] }; groups.push(secGroup);
+  }
+  const row = el("div", "ln");
+  const text = el("span", "x", l.text);
+  row.append(el("span", "t", l.wall), text);
+  row.addEventListener("click", () => play(l));
+  list.append(row);
+  const item = { line: l, el: row, textEl: text, key: norm(l.text) };
+  rows.push(item); recGroup.rows.push(item); secGroup.rows.push(item);
+}
+if (!rows.length) list.append(el("div", "empty", "No conversation was found in these recordings."));
+
+// Search: hide non-matching lines, highlight the match.
+function highlight(item, query) {
+  item.textEl.textContent = "";
+  const t = item.line.text, i = query ? t.toLowerCase().indexOf(query) : -1;
+  if (i < 0) { item.textEl.textContent = t; return; }
+  item.textEl.append(t.slice(0, i), el("mark", null, t.slice(i, i + query.length)), t.slice(i + query.length));
+}
+let timer;
+q.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(search, 120); });
+function search() {
+  const raw = q.value.trim().toLowerCase(), key = norm(q.value);
+  let n = 0;
+  for (const item of rows) {
+    const hit = !key || item.key.includes(key);
+    item.el.classList.toggle("hidden", !hit);
+    highlight(item, hit && key ? raw : "");
+    n += hit;
+  }
+  for (const g of groups) g.el.classList.toggle("hidden", !g.rows.some(r => !r.el.classList.contains("hidden")));
+  count.textContent = key ? `${n} matching line${n === 1 ? "" : "s"}` : "";
+}
+
+// Playback: conversation-only audio uses t_combined; the full recording uses t (seconds into it).
+function sourceFor(l) {
+  return mode.value === "full" ? recs[l.rec].music_removed_audio : D.combined_audio;
+}
+function play(l) {
+  const src = sourceFor(l), at = Math.max(0, (mode.value === "full" ? l.t : l.t_combined) - 2);
+  const go = () => { player.currentTime = at; player.play(); };
+  if (player.getAttribute("src") === src && player.readyState >= 1) { go(); return; }
+  player.setAttribute("src", src);
+  player.addEventListener("loadedmetadata", go, { once: true });
+  player.load();
+}
+mode.addEventListener("change", () => { player.pause(); player.removeAttribute("src"); player.load(); });
+
+// Mark the line being heard.
+let current = null;
+player.addEventListener("timeupdate", () => {
+  const t = player.currentTime, full = mode.value === "full";
+  const src = player.getAttribute("src");
+  let best = null;
+  for (const item of rows) {
+    const l = item.line;
+    if (full && recs[l.rec].music_removed_audio !== src) continue;
+    if ((full ? l.t : l.t_combined) <= t + 0.05) best = item; else if (best) break;
+  }
+  if (best !== current) {
+    current?.el.classList.remove("cur");
+    best?.el.classList.add("cur");
+    current = best;
+  }
+});
+</script>
+</body>
+</html>
