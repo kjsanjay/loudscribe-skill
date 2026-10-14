@@ -51,24 +51,32 @@ def _in_cloud(path):
 
 def _session_dir(out, folder):
     """out/<folder name>, or out/<folder name>-2 if that name is taken by a different folder."""
+    from . import session as S
     for n in range(1, 100):
         d = out / (folder.name if n == 1 else f"{folder.name}-{n}")
-        meta = d / "session.json"
+        meta = next((m for m in (d / S.TECH / "session.json", d / "session.json") if m.exists()), None)
         try:
-            owner = json.loads(meta.read_text(encoding="utf-8"))["source"] if meta.exists() else None
+            owner = json.loads(meta.read_text(encoding="utf-8"))["source"] if meta else None
         except (OSError, ValueError, KeyError):
             continue  # damaged: leave that folder alone
         if owner in (None, str(folder)):
-            d.mkdir(parents=True, exist_ok=True)
-            meta.write_text(json.dumps({"source": str(folder)}), encoding="utf-8")
+            if owner:  # our results from an older version: move them into today's layout
+                S.migrate(d)
+            _write_session(d, folder)
             return d
     raise SystemExit(f"Too many output folders named {folder.name}")
+
+
+def _write_session(sdir, folder):
+    from .session import TECH
+    (sdir / TECH).mkdir(parents=True, exist_ok=True)
+    (sdir / TECH / "session.json").write_text(json.dumps({"source": str(folder)}), encoding="utf-8")
 
 
 def _keep_awake():
     """Ask Windows not to sleep (it sleeps after its idle timeout, often 1 h even plugged in, which
     pauses the run) and not to confine this process to the efficiency cores (Windows 11 power
-    throttling halved music-removal speed on an i7-1360P). Both end with the process. Windows can
+    throttling can halve music-removal speed on a laptop). Both end with the process. Windows can
     still refuse, so say so if it does."""
     if sys.platform != "win32":
         return
@@ -96,7 +104,9 @@ def _refuse_cloud(out, allowed=False):
 
 def cmd_process(args):
     """Exit status: 0 all done, 2 some recordings failed (named at the end), 1 nothing processed."""
+    from . import prep
     from . import process as P
+    from . import session as S
     out = args.out.expanduser().resolve()
     _refuse_cloud(out, args.allow_cloud_output)
     folders = [f.expanduser().resolve() for f in args.folders]
@@ -120,6 +130,9 @@ def cmd_process(args):
 
     status = 0
     for folder in folders:
+        sample = prep.as_sample(folder)  # a sample's results go in its own folder, beside its audio
+        if sample:
+            folder, sdir, sample = sample
         recs, skipped = P.find_recordings(folder)
         sizes = {r.src: r.src.stat().st_size for r in recs}
         time.sleep(2)
@@ -129,18 +142,23 @@ def cmd_process(args):
         if not recs:
             sys.exit(f"No readable audio files in {folder}"
                      + (f" (couldn't read: {', '.join(skipped)})" if skipped else ""))
-        sdir = _session_dir(out, folder)
-        with open(sdir / "progress.log", "a", encoding="utf-8") as logf:
+        if sample:
+            _write_session(sdir, folder)
+        else:
+            sdir = _session_dir(out, folder)
+        busy = (f"Another loudscribe run is already processing {sdir.name}. Wait for it to finish "
+                f"({S.TECH}/progress.log shows how far it is), or stop it first.")
+        with S.run_lock(sdir, busy), open(sdir / S.TECH / "progress.log", "a", encoding="utf-8") as logf:
             def log(msg="", end="\n", flush=True):
                 print(msg, end=end, flush=flush)
                 logf.write(msg + end)
                 logf.flush()
 
-            status = max(status, _process_folder(args, engine, sdir, recs, skipped, log))
+            status = max(status, _process_folder(args, engine, sdir, recs, skipped, log, sample))
     sys.exit(status)
 
 
-def _process_folder(args, engine, sdir, recs, skipped, log):
+def _process_folder(args, engine, sdir, recs, skipped, log, sample=None):
     """Returns 0 if every recording finished, 2 if some failed, 1 if none did."""
     from . import audio
     from . import process as P
@@ -213,17 +231,18 @@ def _process_folder(args, engine, sdir, recs, skipped, log):
     log("")
     for job, res in zip(done, results):
         log(f"  {job.rec.src.name}: {S.plural(len(res['sections']), 'conversation section')}, "
-            f"{S.clock(res['speech_seconds'])} of speech")
+            f"{S.clock(res['speech_seconds'])} of talking")
     index = S.build(sdir, sdir.name, results)
     audio_s = sum(j.rec.duration for j in done)
     if ran and audio_s >= 180:  # remember this computer's speed for the next estimate
         models.remember_speed(engine, music, sum(j.seconds() for j in done) / audio_s)
     log(f"\nDone in {S.duration_words(time.time() - t0)}: {S.plural(len(index['sections']), 'section')}, "
-        f"{S.clock(index['speech_seconds'])} of conversation."
-        + ("" if index["combined_audio"] else " No conversation found, so there's no combined audio."))
+        f"{S.clock(index['speech_seconds'])} of talking"
+        + (f" ({S.COMBINED} is {S.clock(index['combined_seconds'])} long, with the pauses)."
+           if index["combined_audio"] else ". No conversation found, so there's no combined audio."))
     if failed:
         log(f"FAILED, not included: {', '.join(failed)} (see the errors above)")
-    log("\n" + S.write_where(sdir, recs[0].src.parent, index))
+    log("\n" + S.write_where(sdir, recs[0].src.parent, index, sample))
     return 2 if failed else 0
 
 
@@ -278,6 +297,8 @@ def main():
         folder = args.folder.expanduser().resolve()
         if not folder.is_dir():
             sys.exit(f"Not a folder: {folder}")
+        if prep.as_sample(folder):  # its audio, not its results
+            folder = prep.as_sample(folder)[0]
         if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
             sys.exit("ffmpeg isn't installed (or isn't on the PATH). Run `python -m loudscribe doctor`.")
         if args.cmd == "check":
@@ -285,8 +306,7 @@ def main():
         else:
             out = args.out.expanduser().resolve()
             _refuse_cloud(out)
-            prep.sample(folder, out, args.at, args.minutes, music=not args.no_music_removal,
-                        default_out=args.out == DEFAULT_OUT)
+            prep.sample(folder, out, args.at, args.minutes, music=not args.no_music_removal)
     elif args.cmd == "find":
         from .search import find
         find(args.text, args.out.expanduser(), args.session, args.context, args.json)

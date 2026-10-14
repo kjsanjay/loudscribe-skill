@@ -58,12 +58,6 @@ Check that the mode you use records 32-bit float: some offer it only in mono.
 
 ## The difference it makes
 
-Three nights on the same A20:
-
-| Night | Settings | Audio clipped | Conversation recovered |
-|---|---|---|---|
-| Club | default gain, 512 kbps, recorder in a pocket | 8.3% | 15 min from 3.5 hours |
-| Club | gain 1–2, WAV 1536 kbps, clip-on mic | 2.3% | 37 min from 1.6 hours |
-| Outdoor festival | gain 1–2, WAV 1536 kbps, clip-on mic | 4.8% | 72 min from 3.7 hours |
-
-At the festival, the hour nearest a stage still clipped 11.8% at gain 1–2; hence gain 1 near stages.
+On the same recorder in the same kind of club, lowering the gain and wearing the clip-on mic
+recovered several times more conversation per hour than the default settings with the recorder in
+a pocket. Near a stage, even gain 1–2 can clip, which is why gain 1 is suggested there.

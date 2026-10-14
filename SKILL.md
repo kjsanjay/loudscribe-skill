@@ -14,9 +14,10 @@ You're helping someone, usually not technical, get their conversations out of no
 2. **The conversations found:** speech transcribed, junk and song lyrics dropped, the rest grouped
    into conversation sections.
 3. **Those stretches, extracted** from the cleaned audio, and **joined into one file**
-   (`only_conversations.m4a`), with a second of silence before each conversation. Each stretch runs from
-   its first line to its last, so pauses of up to 20 s between lines stay in, with whatever was in
-   them (now and then a few sung words, or someone else's chatter).
+   (`only_conversations.m4a`), with a second of silence before each conversation. Each stretch runs
+   from its first line to its last, so pauses of up to 20 s between lines stay in, with whatever was in
+   them (now and then a few sung words, or someone else's chatter). The file is therefore longer
+   than the talking itself, typically about 1.8 times.
 4. **A transcript file** (`transcript.txt`): every conversation with wall-clock times, and where each
    one starts in `only_conversations.m4a` and in the original recording.
 5. **A way to find any moment:** `loudscribe find "words"` and `viewer.html` (search, click a line
@@ -42,8 +43,8 @@ installs, and answer plain questions. `SKILL_DIR` below means the folder contain
   as synced, but can't spot every sync setup: check the output folder is local yourself.
 - **Reading a transcript sends that text to your AI provider.** Transcripts hold other people's
   conversations. Before you first read transcript text, tell the user that in one sentence and ask.
-  That includes `find` results, `index.json` and `viewer.html`, which contain the text too. For
-  checks, use counts and the label/reasons columns of `segments.tsv` rather than the text.
+  That includes `find` results, `technical/index.json` and `viewer.html`, which contain the text
+  too. For checks, use counts and the label/reasons columns of `segments.tsv` rather than the text.
 - **Never modify, move or delete the original recordings.** Read them in place. If they're still on
   the recorder or in a cloud folder, ask the user to copy them to a normal local folder first.
   (On Windows, copy OneDrive files with `Copy-Item` or Explorer, not `robocopy /COPY:DAT`, which
@@ -58,8 +59,9 @@ installs, and answer plain questions. `SKILL_DIR` below means the folder contain
 Plain words ("music removal", not "source separation"), one action at a time. Before installing: what,
 roughly how big (~4 GB, more with an NVIDIA GPU) and how long; ask. Before processing: how many
 recordings and hours of audio, the time estimate, and that they can leave it running. Afterwards:
-what was found in human terms ("7 conversations, about 25 minutes of talking, mostly 11:40 pm–1 am"),
-where the files are, and that they can open `viewer.html` to search and listen. Offer next steps.
+what was found in human terms ("7 conversations, about 25 minutes of talking, mostly 11:40 pm–1 am";
+the conversation file is longer than that because the pauses stay in), where the files are, and that
+they can open `viewer.html` to search and listen. Offer next steps.
 
 ## Show your progress as a checklist
 
@@ -81,8 +83,8 @@ Once `LS check` has run, put the time estimates into items 5 and 6 ("Try a 10-mi
 6 min)", "Process the recordings (about 50 min)"). Mark one item in progress at a time, and mark it
 done as soon as it is. Mark items that don't apply as skipped, or drop them (Install when `doctor`
 already passes; the sample if they decline it). While processing, keep item 6's text current from
-`progress.log`: the step, the recording, and the time left, for example "Process the recordings:
-removing music, 2 of 4, about 30 min left". Add an item when something new needs doing ("Wait for you
+`technical/progress.log`: the step, the recording, and the time left, for example "Process the
+recordings: removing music, 2 of 4, about 30 min left". Add an item when something new needs doing ("Wait for you
 to install Homebrew"). Don't put transcript text in the checklist.
 
 ## Steps
@@ -95,7 +97,8 @@ Below, `LS` means running the bundled package with the environment's Python and
   `$env:PYTHONPATH="SKILL_DIR"; & "$env:USERPROFILE\.loudscribe\venv\Scripts\python.exe" -m loudscribe`
 
 `LS process` exits with 0 when every recording finished, 2 when some failed (they're named at the
-end and in `progress.log`; the rest are done), and 1 when none could be processed.
+end and in `technical/progress.log`; the rest are done), and 1 when none could be processed. It
+refuses to start on a night that another run is already processing.
 
 1. **Find the recordings.** Ask where they are if unclear. Check they're readable audio and not still
    copying. One night = one folder; if nights are mixed, ask or group them by date. If they're on the
@@ -150,9 +153,10 @@ end and in `progress.log`; the rest are done), and 1 when none could be processe
    something is unusual (new recorder, low memory, CPU-only, another language); on repeat runs offer
    it but suggest going straight to the full run. If they want it:
    - `LS sample "<folder>"`, adding `--at 23:40` to start at a clock time when they remember talking.
-     It copies 10 minutes (5 on CPU-only computers) into `~/loudscribe-output/samples/<night>-sample/`,
-     named so the clock times stay right, and prints the folder. The original isn't touched.
-   - `LS process "<that folder>"`, then give them the sample's
+     It copies 10 minutes (5 on CPU-only computers) into
+     `~/loudscribe-output/samples/<night>-sample/sample_recording/`, named so the clock times stay
+     right, and prints the sample folder. The original isn't touched.
+   - `LS process "<the sample folder>"`: the results go in that same folder. Give them the sample's
      `recordings/…_music_removed.m4a` and `only_conversations.m4a` to listen to, and say what was found.
    - Run `LS check "<folder>"` again: the estimate for the whole night now uses the speed measured
      on the sample. Give them the new figure and wait for their OK before the full run.
@@ -162,27 +166,30 @@ end and in `progress.log`; the rest are done), and 1 when none could be processe
    Windows to stay awake and off the slow efficiency cores, and says so if Windows refuses: then ask
    the user to set Sleep to Never while plugged in); for runs over an hour start it
    detached (`nohup … &`, or `Start-Process` on Windows) so it survives the session, and follow
-   `~/loudscribe-output/<night>/progress.log`. On Windows the venv's `python.exe` is a launcher that
+   `~/loudscribe-output/<night>/technical/progress.log`. That log has everything the run prints, so
+   send the detached run's own output to `~/.loudscribe/` (for example `~/.loudscribe/last-run.log`),
+   not into the results folder. On Windows the venv's `python.exe` is a launcher that
    starts the real Python as a child: to stop a run, stop both. It resumes where it stopped if
    interrupted; re-running with a different `--language` or music removal setting redoes only the
    steps that changes. A file that fails is skipped and named at the end; the rest still finish.
    If a recording file is replaced (or a sample re-cut) under the same name, its old results are
    discarded and it's processed again.
-7. **Check the results** before reporting. Each recording's `work/<id>/segments.tsv` shows how many
-   lines were kept, dropped (and why) and called lyrics: use its counts and reasons columns, not the
-   text (see Rules). If almost nothing was found, look back at the clipping from step 4: heavy
+7. **Check the results** before reporting. Each recording's `technical/work/<id>/segments.tsv`
+   shows how many lines were kept, dropped (and why) and called lyrics: use its counts and reasons
+   columns, not the text (see Rules). If almost nothing was found, look back at the clipping from step 4: heavy
    clipping means the recording is the problem, not the tool. Then say what was found in human
    terms (see "Talking to the user").
 8. **Show where everything is.** `LS process` ends by printing the list of files it made and saving
    it as `WHERE_THINGS_ARE.txt` in the results folder: the original recordings, `viewer.html`,
    `transcript.txt`, `only_conversations.m4a`, each recording's music-removed audio, conversation audio
-   and transcript, `progress.log` and the technical files, and where the tools and models live. Show
-   the user that list with full paths in their system's format, and add what you made yourself:
+   and transcript, the `technical/` folder (logs and data nobody needs to open), and where the tools
+   and models live. Show the user that list with full paths in their system's format, and add what
+   you made yourself:
    - copies of recordings you made (step 1), and that they can delete them once they're happy;
-   - the sample: its copy in `~/loudscribe-output/samples/<night>-sample/` and its results in
-     `~/loudscribe-output/<night>-sample/`;
+   - the sample, if they tried one: `~/loudscribe-output/samples/<night>-sample/` (its audio and its
+     results), which they can delete once they're happy;
    - the output file of a detached run, if you started one;
-   - any recordings that failed, with the reason from `progress.log`.
+   - any recordings that failed, with the reason from `technical/progress.log`.
 
    Offer to open the results folder or `viewer.html` for them.
 9. **Help them use it:** `LS find "words"` (add `--json`) gives the clock time and the
@@ -203,12 +210,32 @@ your judgement, keep the Rules, keep the tool's tested models and settings, and 
 sentence what you did differently. The hallucination list and lyric rules were tuned on English
 recordings; with other languages, check `segments.tsv` drop reasons on the sample first.
 
+## Feedback and ideas
+
+This is an early test release, and reports from real use are how it improves. Suggest opening an issue
+at https://github.com/kjsanjay/loudscribe-skill/issues/new/choose when:
+
+- something failed, was confusing, or you had to work around the tool or these instructions;
+- the user wishes it did something it doesn't ("can it tell me who was speaking?");
+- a run finished on a computer, recorder or language not yet tested (step 2's table), even if
+  everything worked: say so, it's useful to know.
+
+Mention it once, at the end of the run or when it comes up, not repeatedly. Offer to draft it for
+them, and show them the draft to post themselves. Issues are public, so the draft holds only what's
+needed to understand it: the version (`LS --version`), operating system, chip and memory, the engine
+from `LS doctor`, hours of audio and how long each step took, options used, the technical error text,
+and what they'd like the skill to do. Never include transcript text or summaries, names, places,
+recording file names, dates or times, or paths with their username. Post it for them (for example
+with `gh issue create`) only if they ask you to and are signed in to GitHub.
+
 ## Updating or removing the skill
 
 - **Update:** `git pull` in `SKILL_DIR` (or download it again from
   https://github.com/kjsanjay/loudscribe-skill if it isn't a git checkout), never while a run is
   going. Then run `LS doctor`: a new version may need `pip install -r requirements.txt` or
   `LS setup` again.
+  Results from an earlier version still work with `find`; processing that night again moves its
+  files into the current layout without redoing any work.
 - **Remove:** after the user confirms, delete `SKILL_DIR` and `~/.loudscribe` (the environment,
   music-removal model, temporary files and speed record), and from the Hugging Face cache
   (`~/.cache/huggingface/hub`, or `HF_HUB_CACHE`) only the folders of the models in

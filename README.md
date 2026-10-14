@@ -5,8 +5,9 @@ An AI-agent skill (for Claude Code or Codex) that takes long recordings made in 
 
 1. **Removes the music** from the audio (with a downloaded AI model).
 2. **Finds where people are talking**, ignoring song lyrics and noise.
-3. **Cuts out those stretches** and joins them into one audio file of the conversations (short
-   pauses between lines stay in, so you may hear the odd snatch of music or someone else nearby).
+3. **Cuts out those stretches** and joins them into one audio file of the conversations (pauses
+   between lines stay in, so the file is longer than the talking, and you may hear the odd snatch
+   of music or someone else nearby).
 4. **Writes a transcript** of every conversation, with the time it happened and where it is in that
    audio file.
 5. **Lets you find any moment:** search what was said and click a line to hear it.
@@ -62,6 +63,7 @@ At the end it lists where everything is. Results go to `~/loudscribe-output/<fol
 - `only_conversations.m4a`: all the conversations joined, music removed
 - `recordings/`: each recording with the music removed, its conversations, and its transcript
 - `WHERE_THINGS_ARE.txt`: the full list, including logs and where the tools are installed
+- `technical/`: logs and data the agent uses; you don't need to open it
 
 If files are named after their start time (as the Tonfarb A20 does, e.g. `20260131223000.WAV`),
 transcripts show real clock times.
@@ -84,8 +86,9 @@ everyone's. Check the law where you record; this isn't legal advice.
 
 ## Feedback
 
-Open an issue on this repo (**Issues → New issue**). The form asks for your computer, the step that
-went wrong, timings and error messages.
+Problems, rough edges and ideas for what it should do next are all welcome: open an issue on this
+repo (**Issues → New issue**) and pick **Test feedback** or **Idea**. Your agent can draft it for
+you: ask it to *"draft a loudscribe issue about …"*.
 
 **Never post recordings, transcripts, names, or anything someone said.** Issues are public.
 

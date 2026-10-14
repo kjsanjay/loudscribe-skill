@@ -5,7 +5,7 @@ import json
 import re
 from pathlib import Path
 
-from .session import clock
+from .session import TECH, clock
 
 
 def norm(text):
@@ -26,16 +26,21 @@ def _closeness(key, line):
 
 def find(query, out_root, session=None, context=1, as_json=False, limit=20):
     key = norm(query)
-    paths = sorted(out_root.glob("*/index.json"))
+    # Each night's technical/index.json (or index.json at the top, from version 0.1.0). Samples
+    # repeat their night, so they're searched only when asked for by name.
+    paths = [*out_root.glob("*/index.json"), *out_root.glob(f"*/{TECH}/index.json")]  # later wins
     if session:
-        paths = [p for p in paths if p.parent.name == session]
-    if not paths:
+        paths += out_root.glob(f"samples/*/{TECH}/index.json")
+    folders = {p.parent.parent if p.parent.name == TECH else p.parent: p for p in paths}
+    if session:
+        folders = {f: p for f, p in folders.items() if f.name == session}
+    if not folders:
         print(f"No processed sessions in {out_root}" + (f" named '{session}'" if session else ""))
         return []
     lines = []  # (session folder, its index, one line)
-    for p in paths:
+    for folder, p in sorted(folders.items()):
         idx = json.loads(p.read_text(encoding="utf-8"))
-        lines += [(p.parent, idx, line) for line in idx["lines"]]
+        lines += [(folder, idx, line) for line in idx["lines"]]
     hits = [(1.0, *x) for x in lines if key and key in norm(x[2]["text"])]
     fuzzy = not hits
     if fuzzy and key:  # transcripts mishear words: fall back to the closest-sounding lines

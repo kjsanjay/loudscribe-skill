@@ -9,11 +9,12 @@ import numpy as np
 
 from . import audio, models
 from .process import find_recordings
-from .session import about, clock, plural
+from .session import TECH, about, clock, plural, run_lock
 
 CLIP_LEVEL = 32700     # 16-bit samples at or above this count as clipped (full scale is 32767)
 HEAVY_CLIP = 0.05      # above ~5% of samples clipped, expect little usable speech
 OVERHEAD_S = 60        # loading the models, whatever the length
+SAMPLE_AUDIO = "sample_recording"  # inside a sample folder: the copied stretch; its results go beside it
 
 
 def sample_minutes(engine):
@@ -108,6 +109,19 @@ def _parse_clock(text):
     raise SystemExit(f"Can't read the time '{text}': use 24-hour HH:MM, e.g. 23:40 or 00:15")
 
 
+def as_sample(folder):
+    """A sample folder made by `sample` (or the sample_recording folder inside it): (where its audio
+    is, where its results go, its sample.json). None for any other folder."""
+    for d in (folder, folder.parent):
+        if (d != folder and folder.name != SAMPLE_AUDIO) or not (d / SAMPLE_AUDIO).is_dir():
+            continue
+        try:
+            return d / SAMPLE_AUDIO, d, json.loads((d / TECH / "sample.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+    return None
+
+
 def _sample_dir(out_root, folder):
     """out_root/samples/<night>-sample, or -sample-2 … if that one belongs to a different folder.
     A folder without our sample.json is never reused (it isn't ours to delete)."""
@@ -115,18 +129,25 @@ def _sample_dir(out_root, folder):
         d = out_root / "samples" / (f"{folder.name}-sample" + ("" if n == 1 else f"-{n}"))
         if not d.exists():
             return d
-        try:
-            if json.loads((d / "sample.json").read_text(encoding="utf-8"))["source"] == str(folder):
-                shutil.rmtree(d)  # our own earlier sample of this night
-                return d
-        except (OSError, ValueError, KeyError):
+        for meta in (d / TECH / "sample.json", d / "sample.json"):  # the second: version 0.1.0
+            try:
+                if json.loads(meta.read_text(encoding="utf-8"))["source"] == str(folder):
+                    break
+            except (OSError, ValueError, KeyError):
+                pass
+        else:
+            continue
+        with run_lock(d, f"The sample in {d} is being processed right now: wait for that to finish."):
             pass
+        shutil.rmtree(d)  # our own earlier sample of this night, and its results
+        return d
     raise SystemExit(f"Too many sample folders for {folder.name} in {out_root / 'samples'}")
 
 
-def sample(folder, out_root, at=None, minutes=None, music=True, default_out=True):
-    """Copy a short stretch into out_root/samples/<night>-sample/, named after its own start time so
-    the transcript's clock times stay right. The original is only read."""
+def sample(folder, out_root, at=None, minutes=None, music=True):
+    """Copy a short stretch into out_root/samples/<night>-sample/sample_recording/, named after its own
+    start time so the transcript's clock times stay right. Processing the sample folder puts its
+    results beside that copy. The original is only read."""
     recs, _ = find_recordings(folder)
     if not recs:
         raise SystemExit(f"No readable audio files in {folder}")
@@ -152,16 +173,17 @@ def sample(folder, out_root, at=None, minutes=None, music=True, default_out=True
     length = min(want, rec.duration - offset)
     start = rec.start + dt.timedelta(seconds=offset)
     dest = _sample_dir(out_root, folder)
-    dest.mkdir(parents=True)
-    (dest / "sample.json").write_text(json.dumps({"source": str(folder), "file": rec.src.name,
-                                                  "offset": offset, "seconds": length}), encoding="utf-8")
-    out = dest / f"{start:%Y%m%d%H%M%S}{rec.src.suffix}"
+    (dest / SAMPLE_AUDIO).mkdir(parents=True)
+    (dest / TECH).mkdir()
+    (dest / TECH / "sample.json").write_text(json.dumps({"source": str(folder), "file": rec.src.name,
+                                                         "offset": offset, "seconds": length}), encoding="utf-8")
+    out = dest / SAMPLE_AUDIO / f"{start:%Y%m%d%H%M%S}{rec.src.suffix}"
     audio.ffmpeg("-ss", f"{offset:.3f}", "-i", str(rec.src), "-t", f"{length:.3f}", "-c", "copy", str(out))
     lo, hi, measured = models.speed(engine, music)
-    flags = ("" if default_out else f' --out "{out_root}"') + ("" if music else " --no-music-removal")
+    flags = "" if music else " --no-music-removal"
     print(f"Sample: {duration_label(length)} from {start:%H:%M:%S} "
           f"({rec.src.name}, {clock(offset)} in), copied to\n  {out}")
-    print(f"Process it with:  loudscribe process \"{dest}\"{flags}")
+    print(f"Process it with:  loudscribe process \"{dest}\"{flags}   (results go in that folder too)")
     print(f"Estimated time: {about(length * lo + OVERHEAD_S, length * hi + OVERHEAD_S)}"
           + (" (from this computer's last run)" if measured else ""))
     return dest

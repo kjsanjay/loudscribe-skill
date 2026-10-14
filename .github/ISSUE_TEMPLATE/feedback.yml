@@ -28,7 +28,7 @@ body:
     attributes:
       label: Computer
       description: Operating system, chip or CPU, memory. `loudscribe doctor` prints the engine it uses.
-      placeholder: "Windows 11, Intel i7-1360P, 16 GB, CPU engine"
+      placeholder: "Windows 11, Intel Core i5, 16 GB, CPU engine"
     validations:
       required: true
   - type: dropdown

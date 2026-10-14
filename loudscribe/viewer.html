@@ -64,7 +64,7 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 
 $("title").textContent = D.session;
 $("meta").textContent = `${D.recordings.length} recording${D.recordings.length === 1 ? "" : "s"} · ` +
-  `${clock(D.speech_seconds)} of conversation · click a line to hear it`;
+  `${clock(D.speech_seconds)} of talking · click a line to hear it`;
 
 // Build the list: recording header > section header > lines. Each header knows its lines,
 // so a search can hide headers whose lines are all hidden.

@@ -1,0 +1,34 @@
+name: Idea
+description: Something loudscribe could do, or do better.
+title: "[idea] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! **Issues are public.** Describe the idea in general terms: never include recordings,
+        transcripts, names, or anything anyone said.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like it to do?
+      placeholder: "Tell me which conversations were mine and which were people nearby."
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help?
+      description: What you were trying to do, and what got in the way.
+  - type: input
+    id: setup
+    attributes:
+      label: Your setup (optional)
+      description: Recorder or phone, computer, and the version from `loudscribe --version`.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I haven't included recordings, transcripts, names, or anything anyone said.
+          required: true

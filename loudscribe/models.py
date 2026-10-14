@@ -13,8 +13,7 @@ HOME = Path(os.environ.get("LOUDSCRIBE_HOME", Path.home() / ".loudscribe"))
 MODELS_DIR = HOME / "models"
 TMP_DIR = HOME / "tmp"
 
-# Chosen by a scored benchmark (club music mixed with known speech, word error rate):
-# MelBand-RoFormer kept speech far better than demucs, and Whisper turbo matched Parakeet.
+# Transcription: Whisper large-v3-turbo. Music removal: MelBand-RoFormer (keeps speech, drops music).
 MLX_WHISPER_REPO = "mlx-community/whisper-large-v3-turbo"  # Apple Silicon (MLX)
 # Everything else (faster-whisper). The repo moved owners in 2026; installs from before keep using
 # their cached copy under the old name.
@@ -30,7 +29,7 @@ REQUIRED_FILES = {  # a download counts as complete only with all of these
 }
 
 # Seconds of processing per second of audio (low, high), used until this computer has a measured
-# speed of its own. CPU: an M1 Max manages ~0.75, an i7-1360P laptop measured 2.5–3.2.
+# speed of its own. CPU-only: ~0.75 on a fast Apple chip, 2.5–3.2 on a typical Windows laptop.
 SPEED = {"mlx": (0.33, 0.66), "cuda": (0.25, 0.6), "cpu": (2.5, 3.5)}
 QUIET = 0.4  # share of that time left without music removal
 SPEED_FILE = HOME / "speed.json"  # measured by earlier runs on this computer

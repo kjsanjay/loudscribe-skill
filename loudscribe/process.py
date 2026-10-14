@@ -20,6 +20,7 @@ import soundfile as sf
 
 from . import audio, models
 from . import classify as C
+from .session import TECH, conversation_file
 from .speech_singing import cached_scorer
 
 SR = 44100
@@ -266,12 +267,12 @@ class Job:
     def __init__(self, rec, session_dir, *, separate=True, language="en", redo=None, keep=False):
         self.rec, self.keep = rec, keep
         self.settings = {"separated": separate, "language": language}
-        self.work = work = session_dir / "work" / rec.id
+        self.work = work = session_dir / TECH / "work" / rec.id
         work.mkdir(parents=True, exist_ok=True)
         recs_dir = session_dir / "recordings"
         recs_dir.mkdir(exist_ok=True)
         self.cleaned_m4a = recs_dir / f"{rec.id}_music_removed.m4a"
-        self.conv_m4a = recs_dir / f"{rec.id}_only_conversations.m4a"
+        self.conv_m4a = recs_dir / conversation_file(rec.id)
 
         # A different file under the same name (a re-cut sample, a replaced recording): start over.
         source, known = _fingerprint(rec), _read(work / "source.json")
