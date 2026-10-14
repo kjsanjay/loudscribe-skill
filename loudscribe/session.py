@@ -1,6 +1,6 @@
 """A session = one folder of recordings (a night out). Builds the combined outputs:
 
-  conversations.m4a   every conversation section, in time order, 1 s apart
+  only_conversations.m4a   every conversation section, in time order, 1 s apart
   transcript.txt      every conversation line, wall-clock times, where each section is in each file
   index.json          the same, for `loudscribe find` and the viewer
   viewer.html         open in a browser: search, click a line to hear it (works offline)
@@ -43,16 +43,16 @@ def about(lo, hi):
 def build(session_dir, name, results):
     """results: recording.json dicts, oldest first. Returns the index dict."""
     recs_dir = session_dir / "recordings"
-    combined = session_dir / "conversations.m4a"
+    combined = session_dir / "only_conversations.m4a"
     offset, recordings, sections, lines, parts = 0.0, [], [], [], []
     for r in results:
-        conv = recs_dir / f"{r['id']}_conversation.m4a"
+        conv = recs_dir / f"{r['id']}_only_conversations.m4a"
         recordings.append({
             "id": r["id"], "start": r["start"], "start_source": r["start_source"],
             "duration": r["duration"], "speech_seconds": r["speech_seconds"],
             "sections": len(r["sections"]), "combined_offset": offset,
             "music_removed_audio": f"recordings/{r['id']}_music_removed.m4a",
-            "conversation_audio": f"recordings/{r['id']}_conversation.m4a" if conv.exists() else None})
+            "conversation_audio": f"recordings/{r['id']}_only_conversations.m4a" if conv.exists() else None})
         sections += [{**s, "rec": r["id"], "t_combined": round(offset + s["t_conv"], 2)}
                      for s in r["sections"]]
         lines += [{**l, "rec": r["id"], "t_combined": round(offset + l["t_conv"], 2)} for l in r["lines"]]
@@ -68,7 +68,7 @@ def build(session_dir, name, results):
         combined.unlink()
 
     index = {"session": name, "created": dt.datetime.now().isoformat(timespec="seconds"),
-             "combined_audio": "conversations.m4a" if parts else None,
+             "combined_audio": "only_conversations.m4a" if parts else None,
              "speech_seconds": sum(r["speech_seconds"] for r in results),
              "recordings": recordings, "sections": sections, "lines": lines}
     (session_dir / "index.json").write_text(json.dumps(index, indent=1), encoding="utf-8")
@@ -81,7 +81,7 @@ def _write_transcripts(session_dir, index):
     out = [f"{index['session']}: {plural(len(index['recordings']), 'recording')}, "
            f"{clock(index['speech_seconds'])} of conversation",
            "Times are wall-clock. Section headers say where the section starts in",
-           "  conversations.m4a (combined, ▶) and in the full recording (recordings/<id>_music_removed.m4a).",
+           "  only_conversations.m4a (combined, ▶) and in the full recording (recordings/<id>_music_removed.m4a).",
            "Find any line:  loudscribe find \"words from the line\"   or open viewer.html", ""]
     for rec in index["recordings"]:
         start = dt.datetime.fromisoformat(rec["start"])
@@ -133,7 +133,7 @@ def write_where(session_dir, source, index):
     for r in index["recordings"]:
         lines += [f"  {recs / (r['id'] + '_music_removed.m4a')}   the whole recording, music removed"]
         if r["conversation_audio"]:
-            lines += [f"  {recs / (r['id'] + '_conversation.m4a')}   just its conversations"]
+            lines += [f"  {recs / (r['id'] + '_only_conversations.m4a')}   just its conversations"]
         lines += [f"  {recs / (r['id'] + '_transcript.txt')}   its transcript"]
     lines += ["", "Logs and technical files:",
               f"  {session_dir / 'progress.log'}", "      what happened during processing, with timings",

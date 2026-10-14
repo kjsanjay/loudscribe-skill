@@ -14,11 +14,11 @@ You're helping someone, usually not technical, get their conversations out of no
 2. **The conversations found:** speech transcribed, junk and song lyrics dropped, the rest grouped
    into conversation sections.
 3. **Those stretches, extracted** from the cleaned audio, and **joined into one file**
-   (`conversations.m4a`), with a second of silence before each conversation. Each stretch runs from
+   (`only_conversations.m4a`), with a second of silence before each conversation. Each stretch runs from
    its first line to its last, so pauses of up to 20 s between lines stay in, with whatever was in
    them (now and then a few sung words, or someone else's chatter).
 4. **A transcript file** (`transcript.txt`): every conversation with wall-clock times, and where each
-   one starts in `conversations.m4a` and in the original recording.
+   one starts in `only_conversations.m4a` and in the original recording.
 5. **A way to find any moment:** `loudscribe find "words"` and `viewer.html` (search, click a line
    to hear it), plus per-recording versions of the audio and transcript.
 
@@ -153,7 +153,7 @@ end and in `progress.log`; the rest are done), and 1 when none could be processe
      It copies 10 minutes (5 on CPU-only computers) into `~/loudscribe-output/samples/<night>-sample/`,
      named so the clock times stay right, and prints the folder. The original isn't touched.
    - `LS process "<that folder>"`, then give them the sample's
-     `recordings/…_music_removed.m4a` and `conversations.m4a` to listen to, and say what was found.
+     `recordings/…_music_removed.m4a` and `only_conversations.m4a` to listen to, and say what was found.
    - Run `LS check "<folder>"` again: the estimate for the whole night now uses the speed measured
      on the sample. Give them the new figure and wait for their OK before the full run.
 6. **Process:** `LS process "<folder>"` (`--no-music-removal` for quiet places, `--language xx` if
@@ -175,7 +175,7 @@ end and in `progress.log`; the rest are done), and 1 when none could be processe
    terms (see "Talking to the user").
 8. **Show where everything is.** `LS process` ends by printing the list of files it made and saving
    it as `WHERE_THINGS_ARE.txt` in the results folder: the original recordings, `viewer.html`,
-   `transcript.txt`, `conversations.m4a`, each recording's music-removed audio, conversation audio
+   `transcript.txt`, `only_conversations.m4a`, each recording's music-removed audio, conversation audio
    and transcript, `progress.log` and the technical files, and where the tools and models live. Show
    the user that list with full paths in their system's format, and add what you made yourself:
    - copies of recordings you made (step 1), and that they can delete them once they're happy;

@@ -271,7 +271,7 @@ class Job:
         recs_dir = session_dir / "recordings"
         recs_dir.mkdir(exist_ok=True)
         self.cleaned_m4a = recs_dir / f"{rec.id}_music_removed.m4a"
-        self.conv_m4a = recs_dir / f"{rec.id}_conversation.m4a"
+        self.conv_m4a = recs_dir / f"{rec.id}_only_conversations.m4a"
 
         # A different file under the same name (a re-cut sample, a replaced recording): start over.
         source, known = _fingerprint(rec), _read(work / "source.json")

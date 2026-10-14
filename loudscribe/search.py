@@ -3,6 +3,7 @@ import datetime as dt
 import difflib
 import json
 import re
+from pathlib import Path
 
 from .session import clock
 
@@ -55,7 +56,7 @@ def find(query, out_root, session=None, context=1, as_json=False, limit=20):
             "context_after": [x["text"] for x in section[j + 1:j + 1 + context]],
             "conversations_m4a": line["t_combined"], "conversation_file": line["t_conv"],
             "recording_m4a": line["t"],
-            "files": {"combined": str(folder / "conversations.m4a"),
+            "files": {"combined": str(folder / idx["combined_audio"]),
                       "conversation": str(folder / rec["conversation_audio"]),
                       "recording": str(folder / rec["music_removed_audio"])}})
     if as_json:
@@ -73,8 +74,8 @@ def find(query, out_root, session=None, context=1, as_json=False, limit=20):
         print(f"   ▶  {r['text']}")
         for c in r["context_after"]:
             print(f"      {c}")
-        print(f"   conversations.m4a {clock(r['conversations_m4a'])}  ·  "
-              f"{r['recording']}_conversation.m4a {clock(r['conversation_file'])}  ·  "
+        print(f"   {Path(r['files']['combined']).name} {clock(r['conversations_m4a'])}  ·  "
+              f"{Path(r['files']['conversation']).name} {clock(r['conversation_file'])}  ·  "
               f"full recording {clock(r['recording_m4a'])}\n")
     if len(hits) > limit:
         print(f"(showing {limit} of {len(hits)}; use more words to narrow it down)")

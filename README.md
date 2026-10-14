@@ -59,7 +59,7 @@ At the end it lists where everything is. Results go to `~/loudscribe-output/<fol
 
 - `viewer.html`: double-click to search what was said and click a line to hear it
 - `transcript.txt`: every conversation, with clock times
-- `conversations.m4a`: all the conversations joined, music removed
+- `only_conversations.m4a`: all the conversations joined, music removed
 - `recordings/`: each recording with the music removed, its conversations, and its transcript
 - `WHERE_THINGS_ARE.txt`: the full list, including logs and where the tools are installed
 
