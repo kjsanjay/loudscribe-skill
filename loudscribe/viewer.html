@@ -46,6 +46,7 @@
         <option value="conv">conversation-only audio</option>
         <option value="full">full recording (music removed)</option>
       </select></label>
+    <label class="meta"><input type="checkbox" id="follow" checked> Follow playback</label>
     <span class="meta" id="count"></span>
   </div>
   <audio id="player" controls preload="none"></audio>
@@ -56,6 +57,7 @@
 const D = JSON.parse(document.getElementById("data").textContent);
 const $ = id => document.getElementById(id);
 const player = $("player"), list = $("list"), q = $("q"), mode = $("mode"), count = $("count");
+const follow = $("follow");
 const recs = Object.fromEntries(D.recordings.map(r => [r.id, r]));
 const norm = s => s.toLowerCase().replace(/[^\p{L}\p{N}']+/gu, " ").replace(/\s+/g, " ").trim();
 const clock = s => { s = Math.max(0, Math.floor(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
@@ -112,6 +114,7 @@ function search() {
   }
   for (const g of groups) g.el.classList.toggle("hidden", !g.rows.some(r => !r.el.classList.contains("hidden")));
   count.textContent = key ? `${n} matching line${n === 1 ? "" : "s"}` : "";
+  scrollToCurrent();
 }
 
 // Playback: conversation-only audio uses t_combined; the full recording uses t (seconds into it).
@@ -128,8 +131,24 @@ function play(l) {
 }
 mode.addEventListener("change", () => { player.pause(); player.removeAttribute("src"); player.load(); });
 
-// Mark the line being heard.
+// Mark the line being heard and keep it visible below the sticky player.
 let current = null;
+function scrollToCurrent() {
+  if (!follow.checked || !current || current.el.classList.contains("hidden")) return;
+  const rect = current.el.getBoundingClientRect();
+  const top = document.querySelector("header").getBoundingClientRect().bottom + 12;
+  const bottom = window.innerHeight - 12;
+  if (rect.top >= top && rect.bottom <= bottom) return;
+  window.scrollTo({
+    top: Math.max(0, window.scrollY + rect.top - top - Math.max(0, (bottom - top - rect.height) / 2)),
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"
+  });
+}
+follow.addEventListener("change", scrollToCurrent);
+player.addEventListener("emptied", () => {
+  current?.el.classList.remove("cur");
+  current = null;
+});
 player.addEventListener("timeupdate", () => {
   const t = player.currentTime, full = mode.value === "full";
   const src = player.getAttribute("src");
@@ -143,6 +162,7 @@ player.addEventListener("timeupdate", () => {
     current?.el.classList.remove("cur");
     best?.el.classList.add("cur");
     current = best;
+    scrollToCurrent();
   }
 });
 </script>
